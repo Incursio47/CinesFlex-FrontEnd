@@ -23,18 +23,19 @@ import {
     FilmDetailsScreen,
     HomeScreen,
     LoginScreen, PromotionDetailsScreen,
-    PromotionScreen,
+    PromotionScreen, registerDoneScreen,
     RegisterScreen
 } from "@features/unAuthentication";
 import {APP_SCREEN} from "@navigation/screenTypes";
+import {createSharedElementStackNavigator} from "react-navigation-shared-element";
 
 const {StatusBarManager} = NativeModules;
 
 const Stack = createStackNavigator();
 const AuthStack = createStackNavigator();
-const HomeStack = createStackNavigator();
+const HomeStack = createSharedElementStackNavigator();
 const CinemasStack = createStackNavigator();
-const PromotionStack = createStackNavigator();
+const PromotionStack = createSharedElementStackNavigator();
 const Tab = createMaterialTopTabNavigator();
 
 const homeOptions = {
@@ -58,14 +59,14 @@ interface IState {
 
 const HomeNavigator = ({navigation, route}: any) => {
     return (
-        <HomeStack.Navigator>
-            <Stack.Screen name={APP_SCREEN.HOME} component={HomeScreen} options={homeOptions}/>
-            <Stack.Screen name={APP_SCREEN.FILM_DETAILS} component={FilmDetailsScreen} options={homeOptions}/>
-            <Stack.Screen name={APP_SCREEN.CINEMAS} component={CinemasScreen} options={homeOptions}/>
-            <Stack.Screen name={APP_SCREEN.CINEMAS_DETAILS} component={CinemasDetailsScreen} options={homeOptions}/>
-            <Stack.Screen name={APP_SCREEN.BOOK_TICKET} component={BookTicketScreen} options={homeOptions}/>
-            <Stack.Screen name={APP_SCREEN.BOOK_TICKET_RESULT} component={BookTicketResultScreen}
-                          options={homeOptions}/>
+        <HomeStack.Navigator initialRouteName={APP_SCREEN.HOME} headerMode={'none'} mode={'modal'}>
+            <HomeStack.Screen name={APP_SCREEN.HOME} component={HomeScreen} options={homeOptions}/>
+            <HomeStack.Screen name={APP_SCREEN.FILM_DETAILS} component={FilmDetailsScreen} options={homeOptions}/>
+            <HomeStack.Screen name={APP_SCREEN.CINEMAS} component={CinemasScreen} options={homeOptions}/>
+            <HomeStack.Screen name={APP_SCREEN.CINEMAS_DETAILS} component={CinemasDetailsScreen} options={homeOptions}/>
+            <HomeStack.Screen name={APP_SCREEN.BOOK_TICKET} component={BookTicketScreen} options={homeOptions}/>
+            <HomeStack.Screen name={APP_SCREEN.BOOK_TICKET_RESULT} component={BookTicketResultScreen}
+                              options={homeOptions}/>
         </HomeStack.Navigator>
     )
 };
@@ -78,9 +79,9 @@ const CinemasNavigator = () => (
 );
 
 const PromotionNavigator = () => (
-    <PromotionStack.Navigator>
-        <Stack.Screen name={APP_SCREEN.PROMOTION} component={PromotionScreen} options={homeOptions}/>
-        <Stack.Screen name={APP_SCREEN.PROMOTION_DETAILS} component={PromotionDetailsScreen} options={homeOptions}/>
+    <PromotionStack.Navigator initialRouteName={APP_SCREEN.PROMOTION} headerMode={'none'} mode={'modal'}>
+        <PromotionStack.Screen name={APP_SCREEN.PROMOTION} component={PromotionScreen}/>
+        <PromotionStack.Screen name={APP_SCREEN.PROMOTION_DETAILS} component={PromotionDetailsScreen}/>
     </PromotionStack.Navigator>
 );
 
@@ -90,13 +91,19 @@ const AuthNavigator = () => {
         (state: { app: AppState }) => state?.app?.token
     );
 
+    const [tokenRefresh, setTokenRefresh] = useState(token);
+
+    useEffect(() => {
+        setTokenRefresh(token)
+    }, [token]);
+
     return (
         <AuthStack.Navigator>
-            {<Stack.Screen
+            {tokenRefresh ? <Stack.Screen
                 name={APP_SCREEN.USER_PROFILE}
                 component={UserProfileScreen}
                 options={homeOptions}
-            />}
+            /> : null}
             <Stack.Screen
                 name={APP_SCREEN.LOGIN}
                 component={LoginScreen}
@@ -105,6 +112,11 @@ const AuthNavigator = () => {
             <Stack.Screen
                 name={APP_SCREEN.REGISTER}
                 component={RegisterScreen}
+                options={homeOptions}
+            />
+            <Stack.Screen
+                name={APP_SCREEN.REGISTER_DONE}
+                component={registerDoneScreen}
                 options={homeOptions}
             />
             <Stack.Screen
@@ -132,9 +144,6 @@ const AuthNavigator = () => {
 };
 
 const NavigationTab: React.FC<IProps> = (props: IProps) => {
-        const userType = useSelector(
-            (state: IState) => state?.app?.profile?.user_type
-        );
         const [showSpinner, setShowSpinner] = useState<boolean>(true);
         const [statusBarHeight, setStatusBarHeight] = useState<number>(20);
 

@@ -16,11 +16,11 @@ import {
     Text
 } from "@components"
 import {ScrollView} from "react-native";
-import {formatMoney, scale, useSelector, verticalScale} from "@common";
+import {dispatch, formatMoney, scale, toast, useSelector, verticalScale} from "@common";
 import {ColorsCustom} from "@theme/color";
-import {ChairItemChoose, ProductItem} from "@config/type";
+import {ChairItemChoose, ProductItem, ShowTimeProps} from "@config/type";
 import {AppState} from "@app_redux/type";
-import {_modalWithListProduct, dayItem as _dayItem} from '../design/components'
+import {_modalWithListProduct, dayItem as _dayItem, _modalPayment} from '../design/components'
 import {timeItem as _timeItem} from '../design/components'
 import {moreItem as _moreItem} from '../design/components'
 import {NavigationService} from "@navigation/navigationService";
@@ -33,46 +33,96 @@ import {_buttonChooseMore} from "@features/authentication/bookTicket/design/comp
 import {FontSizeDefault} from "@theme/fontSize";
 import {Input} from "@features/unAuthentication/login/design/components/Input";
 import {styles} from "@features/authentication/bookTicket/design/style";
+import {FilmProps} from "@features/unAuthentication/home/design";
+import {RegionProps} from "@features/unAuthentication/cinemas/design";
+import {CinemasProps} from "@features/unAuthentication/cinemasDetails/design";
+import {actionsCinemas} from "@features/unAuthentication/cinemas/redux/reducer";
+import {RootState} from "@store/allReducers";
 
 type MoreProps = StackScreenProps<RootStackParamList, APP_SCREEN.HOME>;
 
-export const BookTicketScreen = ({navigation, route}: MoreProps) => {
+interface BookTicketParamProps {
+    route: {
+        params: {
+            film: FilmProps,
+            region: RegionProps,
+            cinemas: CinemasProps,
+        }
+    },
+}
+
+type BookTicketProps = StackScreenProps<RootStackParamList, APP_SCREEN.BOOK_TICKET> | BookTicketParamProps;
+
+export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
+
+    const film = props.route.params?.film ?? null;
+    const region = props.route.params?.region ?? null;
+    const cinemas = props.route.params?.cinemas ?? null;
 
     const token = useSelector(
         (state: { app: AppState }) => state?.app?.token
     );
 
-    const [dataChair, setDataChair] = useState<any>(chairs);
+    const [dataChair, setDataChair] = useState<any>([]);
+    const [showTime, setShowTime] = useState<ShowTimeProps[] | any>([]);
+    const [showTimeSub, setShowTimeSub] = useState<ShowTimeProps[] | any>([]);
     const modalCorn = useRef<ModalBoxRef>();
     const modalBeverages = useRef<ModalBoxRef>();
-    const [dataCorn, setDataCorn] = useState(dataCornSample);
-    const [dataBeverage, setDataBeverage] = useState(dataBevSample);
-
-    // useEffect(()=>{
-    //     if(!token){
-    //         NavigationService.navigate(APP_SCREEN.LOGIN)
-    //     }
-    // },[token]);
+    const modalPayment = useRef<ModalBoxRef>();
+    const [dataCorn, setDataCorn] = useState<ProductItem[] | []>([]);
+    const [dataBeverage, setDataBeverage] = useState<ProductItem[] | []>([]);
+    let URL_DOMAIN = useSelector(
+        (state: RootState) => state.app?.appUrl
+    );
 
     useEffect(() => {
-        let dataCopy: ChairItemChoose[] = Object.assign([], dataChair);
-        for (let i in dataCopy) {
-            dataCopy[i].is_selected = false
+        if (!token) {
+            NavigationService.navigate(APP_SCREEN.LOGIN)
         }
+        dispatch(actionsCinemas.getListShowTimeByCinemas(`${URL_DOMAIN}movie-screens/show-times-by-movie-n-cinema`, {
+            "movie_id": film?.id ?? '',
+            "cinema_id": cinemas?.id ?? ''
+        }, (result) => {
+            if (result && result?.data?.data) {
+                let dataSource = Object.assign([], result?.data?.data);
+                dataSource.map((item: any, index: number) => {
+                    item.is_Selected = index === 0;
+                    dataSource[index]?.show_times?.map((item: ShowTimeProps, index: number) => {
+                        item.is_Selected = false
+                    })
+                });
+                setShowTime(dataSource);
+                setShowTimeSub(dataSource[0]?.show_times)
+            }
+        }))
+    }, [token]);
 
-        let dataCornCopy: ProductItem[] = Object.assign([], dataCorn);
-        for (let j in dataCornCopy) {
-            dataCornCopy[j].quality = 0
-        }
+    useEffect(() => {
+        let dataCorn: ProductItem[] = [];
+        let dataBeverage: ProductItem[] = [];
+        dispatch(actionsCinemas.getListProducts(`${URL_DOMAIN}products`, (result) => {
+            if (result && result?.data?.data) {
+                let data: ProductItem[] = result?.data?.data;
+                dataCorn = data.filter((item) => {
+                    return item.type === 1
+                });
+                dataBeverage = data.filter((item) => {
+                    return item.type === 2
+                });
 
-        let dataBeverageCopy: ProductItem[] = Object.assign([], dataBeverage);
-        for (let k in dataBeverageCopy) {
-            dataBeverageCopy[k].quality = 0
-        }
+                let dataCornCopy: ProductItem[] = Object.assign([], dataCorn);
+                for (let j in dataCornCopy) {
+                    dataCornCopy[j].quality = 0
+                }
 
-        setDataChair(dataCopy);
-        setDataCorn(dataCornCopy);
-        setDataBeverage(dataBeverageCopy)
+                let dataBeverageCopy: ProductItem[] = Object.assign([], dataBeverage);
+                for (let k in dataBeverageCopy) {
+                    dataBeverageCopy[k].quality = 0
+                }
+                setDataCorn(dataCornCopy);
+                setDataBeverage(dataBeverageCopy)
+            }
+        }));
     }, []);
 
     const _onGoBack = () => {
@@ -85,7 +135,16 @@ export const BookTicketScreen = ({navigation, route}: MoreProps) => {
     };
 
     const onPressBuy = () => {
-        NavigationService.navigate(APP_SCREEN.BOOK_TICKET_RESULT, {text: "Book ticket success! Please take your phone with book code for take a ticket"})
+        if (handlePriceTicket(dataChair, dataCorn, dataBeverage) > 0) {
+            modalPayment.current?.show();
+        } else {
+            alert('Please choose your order')
+        }
+    };
+
+    const onPressPayment = () => {
+        alert('call api payment')
+        // NavigationService.navigate(APP_SCREEN.BOOK_TICKET_RESULT, {text: "Book ticket success! Please take your phone with book code for take a ticket"})
     };
 
     const onPressTicket = () => {
@@ -178,20 +237,23 @@ export const BookTicketScreen = ({navigation, route}: MoreProps) => {
 
     const _renderChairItem = (dataChair: ChairItemChoose[]) => {
         let dataTemp: any = [];
-
         let filterByLine: ChairItemChoose[];
         let data: ChairItemChoose[] = dataChair;
-        let numberOfLine = data.length / 6;
+        let numberOfLine = data.length / 5;
         for (let i = 1; i <= numberOfLine; i++) {
             filterByLine = data.filter(function (item) {
-                return item.parent == data[i === 1 ? 1 : i * numberOfLine + i - 1].parent;
+                return item?.seat_row == data[i === 1 ? 1 : i + numberOfLine * i - 1]?.seat_row;
             });
+            console.log({
+                filterByLine
+            });
+
             dataTemp.push(
                 <Block direction={'row'}>
                     {filterByLine.map(item => {
                         return (
                             <Button onPress={() => {
-                                if (!item.is_available) {
+                                if (item.type !== 2) {
                                     let dataCopy: ChairItemChoose[] = Object.assign([], dataChair);
                                     for (let i in dataCopy) {
                                         if (dataCopy[i].name === item.name) {
@@ -199,12 +261,12 @@ export const BookTicketScreen = ({navigation, route}: MoreProps) => {
                                         }
                                     }
                                     setDataChair(dataCopy)
-                                }else {
-                                    alert('this chair is reserved')
+                                } else {
+                                    toast('this chair is reserved')
                                 }
                             }}
                                     style={[styles().chairContainer, {
-                                        backgroundColor: item.is_available ? ColorsCustom.product.TextLight : item.is_selected ? ColorsCustom.darkOrange : 'white',
+                                        backgroundColor: item.type === 2 ? ColorsCustom.product.TextLight : item.is_selected ? ColorsCustom.darkOrange : 'white',
                                     }]}>
                                 <Text>
                                     {item.name}
@@ -222,12 +284,39 @@ export const BookTicketScreen = ({navigation, route}: MoreProps) => {
         )
     };
 
-    const onPressDay = () => {
-
+    const onPressDay = (item: any, index: string) => {
+        let dataSource = Object.assign([], showTime);
+        if (!item.is_Selected) {
+            dataSource.map((item: any, index: number) => {
+                return item.is_Selected = false
+            });
+            dataSource[index].is_Selected = true;
+            setShowTime(dataSource);
+            setShowTimeSub(dataSource[index]?.show_times)
+        }
     };
 
-    const onPressTime = () => {
-
+    const onPressTime = (item: any, index: string) => {
+        console.log({item});
+        let dataSource = Object.assign([], showTimeSub);
+        if (!item.is_Selected) {
+            dataSource.map((item: any, index: number) => {
+                return item.is_Selected = false
+            });
+            dataSource[index].is_Selected = true;
+            setShowTimeSub(dataSource);
+            dispatch(actionsCinemas.getListSeatByScreen(`${URL_DOMAIN}seats/get-list-by-screen`, {
+                "screen_id": item?.screen_id ?? '',
+            }, (result) => {
+                if (result && result?.data?.data) {
+                    let dataSource = Object.assign([], result?.data?.data);
+                    dataSource.map((item: any, index: number) => {
+                        item.is_Selected = false
+                    });
+                    setDataChair(dataSource);
+                }
+            }))
+        }
     };
 
     return (
@@ -245,7 +334,7 @@ export const BookTicketScreen = ({navigation, route}: MoreProps) => {
                     <ScrollView horizontal style={{marginTop: scale(15)}}
                                 contentContainerStyle={{marginLeft: scale(15)}}
                                 showsHorizontalScrollIndicator={false}>
-                        {[1, 2, 3, 4, 5].map((item, index) => {
+                        {showTime.map((item: ShowTimeProps, index: number) => {
                             return (
                                 <_dayItem index={index.toString()} item={item} onPressItem={onPressDay}/>
                             )
@@ -256,7 +345,7 @@ export const BookTicketScreen = ({navigation, route}: MoreProps) => {
                     <ScrollView horizontal style={{marginTop: scale(5)}}
                                 contentContainerStyle={{marginLeft: scale(15)}}
                                 showsHorizontalScrollIndicator={false}>
-                        {[1, 2, 3, 4, 5].map((item, index) => {
+                        {showTimeSub && showTimeSub.map((item: ShowTimeProps, index: number) => {
                             return (
                                 <_timeItem index={index.toString()} item={item} onPressItem={onPressTime}/>
                             )
@@ -288,8 +377,7 @@ export const BookTicketScreen = ({navigation, route}: MoreProps) => {
                           containerStyle={{marginLeft: scale(10)}}/>
                 </Block>
                 <Block direction={'row'} marginLeft={scale(10)} alignItems={'center'}
-                       justifyContent={'space-between'} marginTop={scale(20)}
-                >
+                       justifyContent={'space-between'} marginTop={scale(20)}>
                     <Block>
                         <_ticketItem numberTicket={handleQualityTicket(dataChair)} onPressItem={onPressTicket}/>
                     </Block>
@@ -304,6 +392,8 @@ export const BookTicketScreen = ({navigation, route}: MoreProps) => {
                 <_modalWithListProduct ref={modalBeverages} onPressPlus={onPressPlusBeveragesItem}
                                        onPressMinus={onPressMinusBeveragesItem}
                                        dataSource={dataBeverage}/>
+                <_modalPayment ref={modalPayment} totalPrice={handlePriceTicket(dataChair, dataCorn, dataBeverage)}
+                               onPressPayment={onPressPayment}/>
             </Screen>
             <IconBack onPress={_onGoBack}/>
         </Block>

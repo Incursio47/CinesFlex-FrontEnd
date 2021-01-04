@@ -28,6 +28,7 @@ import {
 } from "@features/unAuthentication";
 import {APP_SCREEN} from "@navigation/screenTypes";
 import {createSharedElementStackNavigator} from "react-navigation-shared-element";
+import {EditProfileScreen} from "@features/authentication/editProfile/design";
 
 const {StatusBarManager} = NativeModules;
 
@@ -130,6 +131,11 @@ const AuthNavigator = () => {
                 options={homeOptions}
             />
             <Stack.Screen
+                name={APP_SCREEN.EDIT_PROFILE}
+                component={EditProfileScreen}
+                options={homeOptions}
+            />
+            <Stack.Screen
                 name={APP_SCREEN.FAVORITE_LIST}
                 component={FavoriteListScreen}
                 options={homeOptions}
@@ -139,6 +145,12 @@ const AuthNavigator = () => {
                 component={CurrentSeeListScreen}
                 options={homeOptions}
             />
+            <Stack.Screen name={APP_SCREEN.FILM_DETAILS} component={FilmDetailsScreen} options={homeOptions}/>
+            <Stack.Screen name={APP_SCREEN.CINEMAS} component={CinemasScreen} options={homeOptions}/>
+            <Stack.Screen name={APP_SCREEN.CINEMAS_DETAILS} component={CinemasDetailsScreen} options={homeOptions}/>
+            <Stack.Screen name={APP_SCREEN.BOOK_TICKET} component={BookTicketScreen} options={homeOptions}/>
+            <Stack.Screen name={APP_SCREEN.BOOK_TICKET_RESULT} component={BookTicketResultScreen}
+                          options={homeOptions}/>
         </AuthStack.Navigator>
     );
 };

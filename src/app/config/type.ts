@@ -238,7 +238,8 @@ export enum SLICE_NAME {
     LOGIN = 'LOGIN',
     REGISTER = 'REGISTER',
     HOME = 'HOME',
-    TOAST = 'TOAST'
+    TOAST = 'TOAST',
+    PROMOTION = 'PROMOTION'
 }
 
 export interface tabItem {
@@ -296,7 +297,7 @@ export interface UserType {
     type: number,
     status: number,
     created_at: string,
-    updated_at: string
+    updated_at: string,
 }
 
 
@@ -312,5 +313,7 @@ export interface ShowTimeProps {
     type: number,
     show_times: any,
     is_Selected?: boolean,
+    price: number,
+    date? : string
 }
 

@@ -4,5 +4,7 @@ import * as Saga from './saga';
 
 export function* HomeSaga() {
     yield takeLatest(actionsHome.getDataHomePage.type, Saga.getDataHomePage);
+    yield takeLatest(actionsHome.getListOrderProduct.type, Saga.getListOrderProduct);
+    yield takeLatest(actionsHome.searchProductByName.type, Saga.searchProductByName);
 }
 

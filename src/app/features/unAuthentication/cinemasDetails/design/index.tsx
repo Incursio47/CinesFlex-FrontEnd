@@ -31,7 +31,9 @@ export interface CinemasProps {
     show_times: ShowTimeProps[]
     status: number
     type: number,
-    image: string
+    images: {
+        url: string
+    }[]
 }
 
 type CinemasDetailsProps = StackScreenProps<RootStackParamList, APP_SCREEN.FILM_DETAILS> | CinemasDetailsParamProps;
@@ -47,10 +49,12 @@ export const CinemasDetailsScreen: React.FC<CinemasDetailsProps> = (props) => {
         (state: RootState) => state.app?.appUrl
     );
     useEffect(() => {
+        //fetch cinemas list by region & movie
         dispatch(actionsCinemas.getListCinemas(`${URL_DOMAIN}movie-screens/show-times-by-movie-n-region`, {
-            "movie_id": film?.id ?? '',
-            "region_id": region?.id ?? ''
+            "movie_id": film?.id ?? null,
+            "region_id": region?.id ?? null
         }, (result) => {
+            console.log({result});
             if (result && result?.data?.data) {
                 setCinemas(result?.data?.data)
             }
@@ -68,7 +72,7 @@ export const CinemasDetailsScreen: React.FC<CinemasDetailsProps> = (props) => {
     };
 
     const _renderItem = ({item, index}: any) => {
-        return <_cinemasListItem item={item} index={index} onPressItem={onPressItem}/>
+        return <_cinemasListItem item={item} index={index} film={film} onPressItem={onPressItem}/>
     };
 
     return (
@@ -85,10 +89,7 @@ export const CinemasDetailsScreen: React.FC<CinemasDetailsProps> = (props) => {
                       showsVerticalScrollIndicator={false}
                       renderItem={_renderItem}
                       keyExtractor={(item, index) => index.toString()}
-                      contentContainerStyle={{
-                          marginTop: verticalScale(60), alignSelf: 'center',
-                          paddingBottom: verticalScale(80)
-                      }}
+                      contentContainerStyle={styles.flatListContainer}
             />
             <IconBack onPress={_onGoBack}/>
         </Block>

@@ -22,6 +22,7 @@ import {actionsRegister} from "@features/unAuthentication/register/redux/reducer
 
 export type FormValueLoginPage = {
     email: string;
+    name: string;
     password: string;
     phone: number,
     confirmPassword: string;
@@ -66,7 +67,7 @@ const FormLoginComponent = React.forwardRef(({onSubmit, activeTintBorderColor}: 
 
     const customRuleString = (name: string, minLength = 2, maxLength = 50, validate?: (val: any) => any) => {
         return {
-            required: {value: true, message: `The ${name.toLowerCase()} field is required.`},
+            required: {value: true, message: `The ${name.toUpperCase()} field is required.`},
             minLength: {
                 value: minLength,
                 message: `Please enter ${name.toLowerCase()} more than ${minLength} characters`
@@ -79,24 +80,9 @@ const FormLoginComponent = React.forwardRef(({onSubmit, activeTintBorderColor}: 
         }
     };
 
-    const customRuleNumber = (name: string, minLength = 2, maxLength = 50) => {
-        return {
-            required: {value: true, message: `The ${name.toLowerCase()} field is required.`},
-            minLength: {
-                value: minLength,
-                message: `Please enter ${name.toLowerCase()} more than ${minLength} characters`
-            },
-            validate: (val: any) => {
-                if (!validator.isNumeric(val)) {
-                    return `The ${name.toLowerCase()} field must be number.`
-                }
-            }
-        }
-    };
-
     const customRulePhone = (name: string, minLength = 2, maxLength = 20) => {
         return {
-            required: {value: true, message: `The ${name.toLowerCase()} field is required.`},
+            required: {value: true, message: `The ${name.toUpperCase()} field is required.`},
             minLength: {
                 value: minLength,
                 message: `Please enter ${name.toLowerCase()} more than ${minLength} characters`
@@ -111,6 +97,7 @@ const FormLoginComponent = React.forwardRef(({onSubmit, activeTintBorderColor}: 
     const rules = useMemo(
         () =>
             ({
+                name: customRuleString('name'),
                 email: {
                     required: {value: true, message: 'Email is required'},
                     pattern: {
@@ -118,9 +105,9 @@ const FormLoginComponent = React.forwardRef(({onSubmit, activeTintBorderColor}: 
                         message: "invalid email address"
                     },
                 },
-                phone: customRulePhone('Name'),
-                password: customRuleString('Password', 6, 30),
-                confirmPassword: customRuleString('Password', 6, 30, (val: any) =>
+                phone: customRulePhone('phone'),
+                password: customRuleString('password', 6, 30),
+                confirmPassword: customRuleString('password', 6, 30, (val: any) =>
                     onCheckType(getValues().password, 'undefined') ||
                     onCheckType(getValues().confirmPassword, 'undefined') ||
                     val === getValues().password ||
@@ -164,14 +151,13 @@ const FormLoginComponent = React.forwardRef(({onSubmit, activeTintBorderColor}: 
                 }}>
                     <Input
                         containerStyle={[styles().textInputContainer, {marginTop: verticalScale(10)}]}
-                        name={'phone'} label={'Name'}
-                        nameTrigger={'phone'}
-                        keyboardType={'numeric'}
+                        name={'name'} label={'Name'}
+                        nameTrigger={'name'}
                         activeTintBorderColor={activeTintBorderColor}
                     />
                     <ErrorMessage
                         errors={errors}
-                        name="phone"
+                        name="name"
                         render={({message}) =>
                             <Text style={styles().textError}>{message}</Text>}
                     />
@@ -184,6 +170,19 @@ const FormLoginComponent = React.forwardRef(({onSubmit, activeTintBorderColor}: 
                     <ErrorMessage
                         errors={errors}
                         name="email"
+                        render={({message}) =>
+                            <Text style={styles().textError}>{message}</Text>}
+                    />
+                    <Input
+                        containerStyle={[styles().textInputContainer, {marginTop: verticalScale(10)}]}
+                        name={'phone'} label={'Phone'}
+                        nameTrigger={'phone'}
+                        keyboardType={'numeric'}
+                        activeTintBorderColor={activeTintBorderColor}
+                    />
+                    <ErrorMessage
+                        errors={errors}
+                        name="phone"
                         render={({message}) =>
                             <Text style={styles().textError}>{message}</Text>}
                     />

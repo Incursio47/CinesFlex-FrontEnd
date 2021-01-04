@@ -5,9 +5,9 @@ import isEqual from 'react-fast-compare';
 import {RootStackParamList, APP_SCREEN} from '@navigation/screenTypes';
 import {Block, Button, Img, ListView, Screen, Text} from "@components"
 import {ColorsCustom} from "@theme/color";
-import {Animated, View} from "react-native";
+import {Alert, Animated, Platform, RefreshControl, ScrollView} from "react-native";
 import SwitchSelector from "react-native-switch-selector";
-import {Constants, dispatch, scale, verticalScale} from "@common";
+import {Constants, dispatch, onChangeAlias, scale, toast, verticalScale} from "@common";
 import {deviceWidth} from "@utils";
 import {FontSizeDefault} from "@theme/fontSize";
 import {_renderListFilm, _renderListFilmHorizontal} from './components';
@@ -19,6 +19,7 @@ import {useSelector} from "react-redux";
 import {RootState} from "@store/allReducers";
 import {actionsHome} from "../redux/reducer";
 import {SharedElement} from "react-navigation-shared-element";
+import {actionsCinemas} from "@features/unAuthentication/cinemas/redux/reducer";
 
 type HomeProps = StackScreenProps<RootStackParamList, APP_SCREEN.HOME>;
 
@@ -59,6 +60,7 @@ export const HomeScreen = ({navigation, route}: HomeProps) => {
     const [dataFilmComing, setDataFilmComing] = useState<FilmProps[] | []>([]);
     const [dataFilmSearch, setDataFilmSearch] = useState<FilmProps[] | []>([]);
     const [isFocusSearch, setIsFocusSearch] = useState<boolean>(false);
+    const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
     const [textSearch, setTextSearch] = useState<string>('');
     const scrollRef = useRef<any>();
     const searchRef = useRef<any>();
@@ -68,13 +70,19 @@ export const HomeScreen = ({navigation, route}: HomeProps) => {
     let isHorizontal = useSelector(
         (state: RootState) => state.home?.isHorizontal
     );
-
+    let {token} = useSelector(
+        (state: RootState) => state.app
+    );
     let URL_DOMAIN = useSelector(
         (state: RootState) => state.app?.appUrl
     );
 
+    //fetch data home page here
     useEffect(() => {
         dispatch(actionsHome.getDataHomePage(`${URL_DOMAIN}movies`, (result) => {
+            if (isRefreshing) {
+                setIsRefreshing(false)
+            }
             if (result?.data?.data) {
                 setDataFilmNow(result.data.data.filter((item: FilmProps) => {
                     return item?.type === 1
@@ -84,12 +92,13 @@ export const HomeScreen = ({navigation, route}: HomeProps) => {
                 }))
             }
         }))
-    }, []);
+    }, [isRefreshing]);
 
     const onScroll = (event: any) => {
         // console.log(event.nativeEvent.contentOffset.x)
     };
 
+    //handle search text
     const onChangeTextSearch = (text: string, isFocus: boolean) => {
         setTimeout(() => {
             setIsFocusSearch(isFocus);
@@ -98,21 +107,35 @@ export const HomeScreen = ({navigation, route}: HomeProps) => {
         searchRef.current.focus()
     };
 
-    const onSubmitSearch = () => {
+    //handle submit search
+    const onSubmitSearch = (text: string) => {
+        let textForSearch = onChangeAlias(text);
         //call api search
-        alert('call api search')
+        dispatch(actionsHome.searchProductByName(`${URL_DOMAIN}movies/search`, {name: textForSearch}, (result) => {
+            if (result?.data?.data) {
+                toast(result.data.message, 2000);
+                setDataFilmSearch(result.data.data);
+            } else {
+                toast(result?.data?.message, 2000)
+            }
+        }))
     };
 
+    //handle on change type of layout
     const handleOnPressChangeLayout = () => {
         dispatch(actionsHome.onSetLayoutHorizontal(!isHorizontal))
     };
 
     function onPressItem(item: FilmProps, isComing = false) {
         // console.log({item});
+        if (token) {
+            dispatch(actionsCinemas.onAddFilmToCurrentSeeList(item));
+        }
         NavigationService.push(APP_SCREEN.FILM_DETAILS, {item, isComing});
         // alert(item)
     }
 
+    //render item  for list vertical (type 1 )
     const _renderItem = ({item, index, isComing}: any) => {
         return (
             <SharedElement id={`item.${item.id}.photo`}>
@@ -121,6 +144,7 @@ export const HomeScreen = ({navigation, route}: HomeProps) => {
         )
     };
 
+    //render item  in the theater for list Horizontal (type 2 )
     const _renderItemInTheTheaterHorizontal = ({item, index}: any) => {
         const inputRange = [
             (index - 0.9) * deviceWidth,
@@ -138,6 +162,7 @@ export const HomeScreen = ({navigation, route}: HomeProps) => {
         )
     };
 
+    //render item  in the coming for list Horizontal (type 2 )
     const _renderItemComingHorizontal = ({item, index}: any) => {
         const inputRange = [
             (index - 0.6) * deviceWidth,
@@ -176,6 +201,7 @@ export const HomeScreen = ({navigation, route}: HomeProps) => {
                         <Text style={styles().headerTitle}>
                             {text.toUpperCase()}
                         </Text>
+                        {/*switch change layout type */}
                         <SwitchSelector
                             textStyle={{fontSize: FontSizeDefault.FONT_10}}
                             textCStyle={{fontSize: FontSizeDefault.FONT_10}}
@@ -206,10 +232,13 @@ export const HomeScreen = ({navigation, route}: HomeProps) => {
         )
     };
 
+    // Horizontal list
     const contentViewHorizontal = () => {
         return (
             <Block marginTop={10} flex={1}>
-                <Screen scroll>
+                <ScrollView refreshControl={
+                    <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh}/>
+                }>
                     <Text style={styles().headerTitle}>
                         {'In Theater Now'.toUpperCase()}
                     </Text>
@@ -227,8 +256,8 @@ export const HomeScreen = ({navigation, route}: HomeProps) => {
                                        renderItem={_renderItemInTheTheaterHorizontal}
                                        keyExtractor={(item, index) => index.toString()}
                                        contentContainerStyle={{
-                                           marginTop: verticalScale(40),
-                                           marginBottom: verticalScale(40)
+                                           marginTop: verticalScale(5),
+                                           marginBottom: verticalScale(20)
                                        }}
                         // ListFooterComponent={_footerView}
 
@@ -250,16 +279,21 @@ export const HomeScreen = ({navigation, route}: HomeProps) => {
                                        renderItem={_renderItemComingHorizontal}
                                        keyExtractor={(item, index) => `${index}+1`.toString()}
                                        contentContainerStyle={{
-                                           marginTop: verticalScale(40),
-                                           marginBottom: verticalScale(40)
+                                           marginTop: verticalScale(5),
+                                           marginBottom: verticalScale(20)
                                        }}
                         // ListFooterComponent={_footerView}
                     />
-                </Screen>
+                </ScrollView>
             </Block>
         )
     };
 
+    const onRefresh = () => {
+        setIsRefreshing(true)
+    };
+
+    // Vertical list
     const contentViewVertical = () => {
         return (
             <Animated.ScrollView
@@ -279,6 +313,9 @@ export const HomeScreen = ({navigation, route}: HomeProps) => {
                               data={dataFilmNow}
                               showsVerticalScrollIndicator={false}
                               renderItem={_renderItem}
+                              refreshControl={
+                                  <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh}/>
+                              }
                               keyExtractor={(item, index) => index.toString()}
                               contentContainerStyle={{marginTop: verticalScale(10)}}
                               ListFooterComponent={_footerView}
@@ -305,6 +342,7 @@ export const HomeScreen = ({navigation, route}: HomeProps) => {
         )
     };
 
+    //search list
     const contentViewForSearch = () => {
         return (
             <Block

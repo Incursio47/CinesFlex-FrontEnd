@@ -15,10 +15,7 @@ import {APP_SCREEN} from "@navigation/screenTypes";
 import {NavigationService} from "@navigation/navigationService";
 import {onLogout} from "@app_redux/reducer";
 import {RootState} from "@store/allReducers";
-
-interface IState {
-
-}
+import {actionsCinemas} from "@features/unAuthentication/cinemas/redux/reducer";
 
 export interface lineItemProps {
     id: number,
@@ -35,6 +32,7 @@ const UserProfileScreen = (props: any): React.ReactElement => {
     const dispatch = useDispatch();
     const onPressLogout = () => {
         dispatch(onLogout());
+        dispatch(actionsCinemas.onLogout());
         NavigationService.reset(APP_SCREEN.LOGIN)
     };
 
@@ -50,12 +48,11 @@ const UserProfileScreen = (props: any): React.ReactElement => {
         (state: RootState) => state.app?.profile
     );
 
-    console.log({profile});
-
     const onPressEdit = () => {
-        alert('Edit')
+        NavigationService.navigate(APP_SCREEN.EDIT_PROFILE)
     };
 
+    // option for list item
     const lineItemOption: lineItemProps[] = [
         {
             id: 1,
@@ -90,14 +87,18 @@ const UserProfileScreen = (props: any): React.ReactElement => {
                     <Block>
                         <Block style={styles.imageContainer}>
                             <Avatar.Image style={{}} size={(deviceWidth / 2.5 - scale(10))}
-                                          source={{uri: 'https://avatars2.githubusercontent.com/u/56025627?s=460&u=6c1c2577adb2c45d76167d061cf68b05e9b3e43d&v=4'}}>
+                                          source={{
+                                              uri: 'https://scontent.fsgn5-6.fna.fbcdn.net/v/t1.0-9/108200276_2405548933075795_7974' +
+                                                  '088370686247055_n.jpg?_nc_cat=106&ccb=2&_nc_sid=09cbfe&_nc_ohc=KGBn4x0m754AX-TyvZ7&_nc_ht=scont' +
+                                                  'ent.fsgn5-6.fna&oh=66be5a0af52fbcfac2f8a820cc499881&oe=600E6167'
+                                          }}>
                             </Avatar.Image>
+                            <Button
+                                style={styles.IconEditContainer}
+                                onPress={onPressEdit}>
+                                <Img source={icons.edit} style={[styles.IconEdit]} tintColor={ColorsCustom.lightWhite}/>
+                            </Button>
                         </Block>
-                        <Button
-                            style={styles.IconEditContainer}
-                            onPress={onPressEdit}>
-                            <Img source={icons.edit} style={[styles.IconEdit]} tintColor={ColorsCustom.lightWhite}/>
-                        </Button>
                     </Block>
                     <Block marginLeft={scale(10)} width={deviceWidth / 2}>
                         <Text style={{

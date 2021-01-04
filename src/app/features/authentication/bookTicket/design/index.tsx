@@ -16,13 +16,12 @@ import {
     Text
 } from "@components"
 import {Alert, ScrollView} from "react-native";
-import {dispatch, formatMoney, scale, toast, useSelector, verticalScale} from "@common";
+import {dispatch, formatMoney, handleCheckTimeWithCurrentTime, scale, toast, useSelector, verticalScale} from "@common";
 import {ColorsCustom} from "@theme/color";
 import {ChairItemChoose, ProductItem, ShowTimeProps} from "@config/type";
 import {AppState} from "@app_redux/type";
 import {_modalWithListProduct, dayItem as _dayItem, _modalPayment} from '../design/components'
 import {timeItem as _timeItem} from '../design/components'
-import {moreItem as _moreItem} from '../design/components'
 import {NavigationService} from "@navigation/navigationService";
 import {images} from "@assets/image";
 import {deviceWidth} from "@utils";
@@ -38,6 +37,7 @@ import {RegionProps} from "@features/unAuthentication/cinemas/design";
 import {CinemasProps} from "@features/unAuthentication/cinemasDetails/design";
 import {actionsCinemas} from "@features/unAuthentication/cinemas/redux/reducer";
 import {RootState} from "@store/allReducers";
+import {onLoadAppEnd} from "@app_redux/reducer"
 
 type MoreProps = StackScreenProps<RootStackParamList, APP_SCREEN.HOME>;
 
@@ -49,6 +49,25 @@ interface BookTicketParamProps {
             cinemas: CinemasProps,
         }
     },
+}
+
+interface PromotionProps {
+    "id": string,
+    "promotion_id": string,
+    "reference": string,
+    "title": string,
+    "value": number,
+    "type": number,
+    "status": number,
+    "promotion": {
+        "id": string,
+        "title": string,
+        "description": string,
+        "date_begin": string,
+        "date_end": string,
+        "type": number,
+        "status": number
+    }
 }
 
 type BookTicketProps = StackScreenProps<RootStackParamList, APP_SCREEN.BOOK_TICKET> | BookTicketParamProps;
@@ -66,20 +85,24 @@ export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
     const [dataChair, setDataChair] = useState<ChairItemChoose[] | []>([]);
     const [showTime, setShowTime] = useState<ShowTimeProps[] | any>([]);
     const [showTimeSub, setShowTimeSub] = useState<ShowTimeProps[] | any>([]);
+    const [promotionInfo, setPromotionInfo] = useState<PromotionProps | null>(null);
+    const [promotionText, setPromotionText] = useState<string>('');
     const modalCorn = useRef<ModalBoxRef>();
     const modalBeverages = useRef<ModalBoxRef>();
     const modalPayment = useRef<ModalBoxRef>();
     const [dataCorn, setDataCorn] = useState<ProductItem[] | []>([]);
     const [dataBeverage, setDataBeverage] = useState<ProductItem[] | []>([]);
-    const [showTimeSelected, setShowTimeSelected] = useState<string>('');
+    const [showTimeSelected, setShowTimeSelected] = useState<ShowTimeProps | null>(null);
     let URL_DOMAIN = useSelector(
         (state: RootState) => state.app?.appUrl
     );
 
     useEffect(() => {
+        // push to login if user not logged in
         if (!token) {
             NavigationService.navigate(APP_SCREEN.LOGIN)
         }
+        // fetch day list by cinemas id & movie id
         dispatch(actionsCinemas.getListShowTimeByCinemas(`${URL_DOMAIN}movie-screens/show-times-by-movie-n-cinema`, {
             "movie_id": film?.id ?? '',
             "cinema_id": cinemas?.id ?? ''
@@ -89,27 +112,33 @@ export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
                 dataSource.map((item: any, index: number) => {
                     if (index === 0) {
                         item.is_Selected = true;
-                        dataSource[0].show_times[0].is_Selected = true;
-                        dispatch(actionsCinemas.getListSeatByScreen(`${URL_DOMAIN}seats/get-list-by-screen`, {
-                            "screen_id": dataSource[index]?.show_times[0].screen_id ?? '',
-                        }, (result) => {
-                            if (result && result?.data?.data) {
-                                let dataSource = Object.assign([], result?.data?.data);
-                                dataSource.map((item: any, index: number) => {
-                                    item.is_Selected = false
-                                });
-                                setDataChair(dataSource);
+                        dataSource[0]?.show_times?.map((item_sub: ShowTimeProps, index_sub: any) => {
+                            if (!handleCheckTimeWithCurrentTime(item_sub.show_time)) {
+                                dataSource[0].show_times[index_sub].is_Selected = true;
+                                setShowTimeSelected(dataSource[0]?.show_times[index_sub]);
+                                dispatch(actionsCinemas.getListSeatByScreen(`${URL_DOMAIN}seats/get-list-by-screen`, {
+                                    "screen_id": dataSource[index]?.show_times[0].screen_id ?? '',
+                                }, (result) => {
+                                    if (result && result?.data?.data) {
+                                        let dataSource = Object.assign([], result?.data?.data);
+                                        dataSource.map((item: any, index: number) => {
+                                            item.is_Selected = false
+                                        });
+                                        setDataChair(dataSource);
+                                    }
+                                }));
+                                return
                             }
-                        }))
+                        });
                     } else {
                         dataSource[index]?.show_times?.map((item: ShowTimeProps, index: number) => {
                             item.is_Selected = false
                         });
                     }
                 });
+                dispatch(onLoadAppEnd());
                 setShowTime(dataSource);
                 setShowTimeSub(dataSource[0]?.show_times);
-                setShowTimeSelected(dataSource[0]?.show_times[0].id ?? '');
             }
         }))
     }, [token]);
@@ -117,6 +146,7 @@ export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
     useEffect(() => {
         let dataCorn: ProductItem[] = [];
         let dataBeverage: ProductItem[] = [];
+        // fetch list corn & beverage
         dispatch(actionsCinemas.getListProducts(`${URL_DOMAIN}products`, (result) => {
             if (result && result?.data?.data) {
                 let data: ProductItem[] = result?.data?.data;
@@ -147,8 +177,17 @@ export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
     };
 
 
-    const onPressApplyCode = () => {
-        alert('Apply Code!!')
+    const onPressApplyPromotionCode = () => {
+        if (promotionText === '') return;
+        dispatch(actionsCinemas.applyPromotionCode(`${URL_DOMAIN}vouchers/apply`, {code: promotionText}, (result) => {
+            console.log({result});
+            if (result?.data?.data) {
+                toast(result.data.message, 2000);
+                setPromotionInfo(result.data.data);
+            } else {
+                toast(result?.data?.message, 2000)
+            }
+        }))
     };
 
     const onPressBuy = () => {
@@ -161,12 +200,15 @@ export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
 
     const onPressPayment = () => {
         let seat_ids: string[] = [];
+        // get list seat ids
         dataChair.filter((item) => {
             return item.is_selected
         }).map((item) => {
             seat_ids.push(item.id)
         });
+        // get list products
         let products: { product_id: string, product_quantity: number }[] = [];
+        // get list corn
         dataCorn.filter((item) => {
             return (item.quality ?? 0) > 0
         }).map((item_sub, index_sub) => {
@@ -175,6 +217,7 @@ export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
                 product_quantity: item_sub.quality ?? 0
             })
         });
+        // get list beverage
         dataBeverage.filter((item) => {
             return (item.quality ?? 0) > 0
         }).map((item_sub, index_sub) => {
@@ -183,11 +226,14 @@ export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
                 product_quantity: item_sub.quality ?? 0
             })
         });
+        // call api book ticket
         dispatch(actionsCinemas.bookTicket(`${URL_DOMAIN}orders/booking-ticket`, {
-            show_time: showTimeSelected,
+            show_time: showTimeSelected ? showTimeSelected.id ?? '' : '',
             seat_ids,
-            products: products
+            products: products ?? null,
+            voucher_id: promotionInfo?.id ?? ''
         }, (result) => {
+            console.log({result});
             if (result && result?.data?.data) {
                 modalPayment.current?.hide();
                 setTimeout(() => {
@@ -197,7 +243,11 @@ export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
                     }, 200)
                 }, 200)
             } else {
-                Alert.alert(result?.data?.message)
+                if (result?.data?.message) {
+                    Alert.alert(result?.data?.message)
+                } else {
+                    Alert.alert(result?.msg)
+                }
             }
         }))
     };
@@ -214,6 +264,7 @@ export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
         modalCorn.current?.show()
     };
 
+    // return quality of product
     const handleQualityProduct = (dataSources: ProductItem[]): number => {
         let quality = 0;
         dataSources
@@ -242,7 +293,7 @@ export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
         dataSources
             .filter((item) => (item.is_selected ?? false))
             .map((item) => {
-                totalPrice = totalPrice + 50000
+                totalPrice = totalPrice + (showTimeSelected ? showTimeSelected.price ?? 0 : 0)
             });
         //total price of corn
         dataCorns
@@ -256,10 +307,14 @@ export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
             .map((item) => {
                 totalPrice = totalPrice + parseInt(String(parseInt(String(item.quality ?? '0')) * parseInt(item.price)))
             });
+        if (promotionInfo) {
+            totalPrice -= totalPrice * (promotionInfo.value / 100)
+        }
         // return
         return totalPrice;
     };
 
+    // handle on press minus or plus product extra
     const plusMinusProduct = (dataSources: ProductItem[], itemForPlus: ProductItem, isPlus = true): ProductItem[] => {
         let dataCornCopy: ProductItem[] = Object.assign([], dataSources);
         dataCornCopy.map((obj, index) => {
@@ -289,7 +344,7 @@ export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
         let result: ProductItem[] = plusMinusProduct(dataBeverage, item, false);
         setDataBeverage(result);
     };
-
+    // handle on press choose chair
     const onPressChair = (item: ChairItemChoose) => {
         {
             if (item.type !== 2) {
@@ -306,11 +361,13 @@ export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
         }
     };
 
+    //render chair
     const _renderChairItem = (dataChair: ChairItemChoose[]) => {
         let dataTemp: any = [];
         let filterByLine: ChairItemChoose[];
         let data: ChairItemChoose[] = dataChair;
-        let numberOfLine = data.length / 6;
+        let rowOfChair = 6;
+        let numberOfLine = data.length / rowOfChair;
         for (let i = 1; i <= numberOfLine; i++) {
             filterByLine = data.filter(function (item) {
                 return item?.seat_row == data[i === 1 ? 1 : i + numberOfLine * i - 1]?.seat_row;
@@ -339,6 +396,7 @@ export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
         )
     };
 
+    // handle OnPress Day
     const onPressDay = (item: any, index: string) => {
         let dataSource = Object.assign([], showTime);
         if (!item.is_Selected) {
@@ -363,31 +421,36 @@ export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
                     }))
                 }
             });
-            setShowTimeSelected(item?.id);
+            setShowTimeSelected(item);
             setShowTimeSub(dataSource[index]?.show_times);
         }
     };
 
+    // handle OnPress Time
     const onPressTime = (item: ShowTimeProps, index: string) => {
-        let dataSource = Object.assign([], showTimeSub);
-        if (!item.is_Selected) {
-            dataSource.map((item: any, index: number) => {
-                return item.is_Selected = false
-            });
-            dataSource[index].is_Selected = true;
-            setShowTimeSub(dataSource);
-            dispatch(actionsCinemas.getListSeatByScreen(`${URL_DOMAIN}seats/get-list-by-screen`, {
-                "screen_id": item?.screen_id ?? '',
-            }, (result) => {
-                if (result && result?.data?.data) {
-                    let dataSource = Object.assign([], result?.data?.data);
-                    dataSource.map((item: any, index: number) => {
-                        item.is_Selected = false
-                    });
-                    setDataChair(dataSource);
-                    setShowTimeSelected(item?.id)
-                }
-            }))
+        if (handleCheckTimeWithCurrentTime(item?.show_time) && item.day === showTime[0].day) {
+            toast('Film is showed at this time')
+        } else {
+            let dataSource = Object.assign([], showTimeSub);
+            if (!item.is_Selected) {
+                dataSource.map((item: any, index: number) => {
+                    return item.is_Selected = false
+                });
+                dataSource[index].is_Selected = true;
+                setShowTimeSub(dataSource);
+                dispatch(actionsCinemas.getListSeatByScreen(`${URL_DOMAIN}seats/get-list-by-screen`, {
+                    "screen_id": item?.screen_id ?? '',
+                }, (result) => {
+                    if (result && result?.data?.data) {
+                        let dataSource = Object.assign([], result?.data?.data);
+                        dataSource.map((item: any, index: number) => {
+                            item.is_Selected = false
+                        });
+                        setDataChair(dataSource);
+                        setShowTimeSelected(item)
+                    }
+                }))
+            }
         }
     };
 
@@ -413,6 +476,7 @@ export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
                         })}
                     </ScrollView>
                 </Block>
+                {/*render list show time sub*/}
                 <Block justifyContent={'center'}>
                     <ScrollView horizontal style={{marginTop: scale(5)}}
                                 contentContainerStyle={{marginLeft: scale(15)}}
@@ -428,9 +492,11 @@ export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
                     <Img source={images.line}
                          style={{width: deviceWidth / 1.1, height: 40, marginTop: verticalScale(15)}}/>
                 </Block>
+                {/*render chair*/}
                 <Block alignItems={'center'}>
                     {_renderChairItem(dataChair)}
                 </Block>
+                {/*render button choose chair*/}
                 <Block direction={'row'} justifyContent={'center'} marginTop={scale(20)}>
                     <_buttonChooseMore onPressItem={onPressButtonCorn} image={images.corn}
                                        key={1}
@@ -442,10 +508,13 @@ export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
                 <Block justifyContent={'center'} alignItems={'center'} marginTop={scale(15)} direction={'row'}>
                     <Input label={'Promotion Code'} name={'text'}
                            typeInput={'outline'}
+                           onTextChange={(name, value) => {
+                               setPromotionText(value ?? '')
+                           }}
                            activeTintBorderColor={ColorsCustom.blue}
-                           containerStyle={{width: deviceWidth - scale(50), height: scale(scale(30))}}/>
+                           containerStyle={{width: deviceWidth - scale(50), height: scale(35)}}/>
                     <Icon icon={'send'} style={{height: scale(15), width: scale(15)}}
-                          onPress={onPressApplyCode}
+                          onPress={onPressApplyPromotionCode}
                           containerStyle={{marginLeft: scale(10)}}/>
                 </Block>
                 <Block direction={'row'} marginLeft={scale(10)} alignItems={'center'}
@@ -458,6 +527,7 @@ export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
                                 image={images.cart}
                                 onPressBuy={onPressBuy}/>
                 </Block>
+                {/*render modal product & payment*/}
                 <_modalWithListProduct ref={modalCorn} onPressPlus={onPressPlusCornItem}
                                        onPressMinus={onPressMinusCornItem}
                                        dataSource={dataCorn}/>

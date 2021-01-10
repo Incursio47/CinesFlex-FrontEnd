@@ -16,6 +16,7 @@ import {NavigationService} from "@navigation/navigationService";
 import {onLogout} from "@app_redux/reducer";
 import {RootState} from "@store/allReducers";
 import {actionsCinemas} from "@features/unAuthentication/cinemas/redux/reducer";
+import {GoogleSignin} from "@react-native-community/google-signin";
 
 export interface lineItemProps {
     id: number,
@@ -30,7 +31,7 @@ export interface lineItemProps {
 const UserProfileScreen = (props: any): React.ReactElement => {
 
     const dispatch = useDispatch();
-    const onPressLogout = () => {
+    const onPressLogout = async () => {
         dispatch(onLogout());
         dispatch(actionsCinemas.onLogout());
         NavigationService.reset(APP_SCREEN.LOGIN)
@@ -69,7 +70,14 @@ const UserProfileScreen = (props: any): React.ReactElement => {
             image: icons.seeCurrent,
             text: 'Current See',
             detail: APP_SCREEN.CURRENT_SEE
-        }, {
+        },
+        {
+            id: 3,
+            image: icons.coin,
+            text: 'Coin Purse CinesFlex',
+            detail: APP_SCREEN.COIN_PURSE
+        },
+        {
             id: 4,
             image: icons.logout,
             text: 'Log Out',

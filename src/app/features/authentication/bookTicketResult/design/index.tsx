@@ -51,7 +51,7 @@ const BookTicketResultScreen: React.FC<Props> = (props): React.ReactElement => {
             <Text style={[styles.text, {marginTop: verticalScale(5)}]}>
                 {text}
             </Text>
-            <Text style={[styles.code, {marginTop: verticalScale(5)}]}>
+            <Text style={[styles.code, {marginTop: verticalScale(5)}, ]}>
                 Your code : {data?.reference}
             </Text>
             <Button

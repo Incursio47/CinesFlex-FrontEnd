@@ -84,14 +84,14 @@ export const orderListItem = ({item, index, onPressItem}: OrderListItemProps) =>
             <Block style={styles.ticketContainer}>
                 <Text>
                     Code :
-                    <Text fontWeight={'bold'} fontSize={"FONT_18"}>
+                    <Text fontWeight={'bold'} fontSize={"FONT_26"}>
                         {' '}{item?.reference}
                     </Text>
                 </Text>
-                <Text>
+                <Text fontWeight={'bold'}>
                     {formatDateToHHmm(item?.show_time?.show_time)}
                 </Text>
-                <Text>
+                <Text fontWeight={'bold'}>
                     {item?.show_time?.date}
                 </Text>
             </Block>
@@ -131,7 +131,7 @@ export const orderListItem = ({item, index, onPressItem}: OrderListItemProps) =>
                 )
             })}
             <Block style={styles.bottomLine}/>
-            <Block block direction={'row'} alignItems={'center'} marginTop={scale(5)}>
+            <Block block direction={'row'} alignItems={'flex-end'} marginTop={scale(5)}>
                 <Text fontWeight={'600'} style={{fontSize: FontSizeDefault.FONT_20}} color={ColorsCustom.light_red}>
                     Total :
                 </Text>

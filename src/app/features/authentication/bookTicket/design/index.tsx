@@ -140,6 +140,7 @@ export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
                                 dispatch(actionsCinemas.getListSeatByScreen(`${URL_DOMAIN}seats/get-list-by-screen`, {
                                     "screen_id": dataSource[0]?.show_times[index_sub].screen_id ?? '',
                                 }, (result) => {
+                                    console.log({result})
                                     if (result && result?.data?.data) {
                                         let dataSource = Object.assign([], result?.data?.data);
                                         dataSource.map((item: any, index: number) => {

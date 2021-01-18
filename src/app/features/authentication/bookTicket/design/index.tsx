@@ -328,7 +328,7 @@ export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
         dataSources
             .filter((item) => (item.is_selected ?? false))
             .map((item) => {
-                totalPrice = totalPrice + (showTimeSelected ? showTimeSelected.price ?? 0 : 0)
+                totalPrice = totalPrice + (showTimeSelected ? (showTimeSelected?.price + (showTimeSelected?.price * item?.fee_percent / 100)) ?? 0 : 0)
             });
         //total price of corn
         dataCorns
@@ -584,7 +584,7 @@ export const BookTicketScreen: React.FC<BookTicketProps> = (props) => {
                 {/*render list show time sub*/}
                 <Block justifyContent={'center'}>
                     <ScrollView horizontal style={{marginTop: scale(5)}}
-                                contentContainerStyle={{marginLeft: scale(15), marginRight : scale(20)}}
+                                contentContainerStyle={{marginLeft: scale(15), marginRight: scale(20)}}
                                 showsHorizontalScrollIndicator={false}>
                         {showTimeSub && showTimeSub.map((item: ShowTimeProps, index: number) => {
                             return (
